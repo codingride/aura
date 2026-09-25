@@ -1,0 +1,3 @@
+// Our first official working program in Aura
+let greeting = "Hello World! Aura is alive. 🚀"
+let print = greeting

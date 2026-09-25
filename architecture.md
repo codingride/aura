@@ -28,3 +28,8 @@
 - Literals: `IDENTIFIER`, `INT_LIT`, `FLOAT_LIT`, `STRING_LIT`
 - Operators: `+`, `-`, `*`, `/`, `=`, `->`
 - Delimiters: `(`, `)`, `{`, `}`, `,`, `:`
+
+## 5. Completed Structural Components
+- **[Week 1 Completed]** `src/tokens.py`: Dictionary mappings and data class token validation tracking.
+- **[Week 1 Completed]** `src/lexer.py`: Character consumer, string, number and multi-token (`->`) look-ahead processor.
+- **[Week 2 Active]** `src/ast.py`: Implementation of statements, variable definitions, and primitive literals.
