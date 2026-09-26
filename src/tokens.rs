@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::LazyLock; // Safe, efficient static evaluation initialization
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TokenType {
   // Special Tokens
   Eof,
