@@ -65,7 +65,16 @@ impl Lexer {
 
         let start_col = self.column;
         let token = match self.ch {
-            '=' => Token::new(TokenType::Assign, self.ch.to_string(), self.line, start_col),
+            '=' => {
+                if self.peek_char() == '=' {
+                    self.read_char();
+                    Token::new(TokenType::Eq, "==".to_string(), self.line, start_col)
+                } else {
+                    Token::new(TokenType::Assign, self.ch.to_string(), self.line, start_col)
+                }
+            }
+            '<' => Token::new(TokenType::Lt, self.ch.to_string(), self.line, start_col),
+            '>' => Token::new(TokenType::Gt, self.ch.to_string(), self.line, start_col),
             '+' => Token::new(TokenType::Plus, self.ch.to_string(), self.line, start_col),
             '*' => Token::new(TokenType::Asterisk, self.ch.to_string(), self.line, start_col),
             '/' => Token::new(TokenType::Slash, self.ch.to_string(), self.line, start_col),

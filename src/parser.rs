@@ -3,8 +3,9 @@ use crate::tokens::{Token, TokenType};
 use crate::ast::{Program, Statement, LetStatement, ConstStatement, Expression, BlockStatement, FunctionStatement, Parameter, IfStatement};
 
 const LOWEST: i32 = 1;
-const SUM: i32 = 2;     // + or -
-const PRODUCT: i32 = 3; // * or /
+const COMPARISON: i32 = 2;
+const SUM: i32 = 3;     // + or -
+const PRODUCT: i32 = 4; // * or /
 
 pub struct Parser {
     lexer: Lexer,
@@ -59,6 +60,7 @@ impl Parser {
 
     fn token_precedence(&self, token_type: TokenType) -> i32 {
         match token_type {
+            TokenType::Eq | TokenType::Lt | TokenType::Gt => COMPARISON,
             TokenType::Plus | TokenType::Minus => SUM,
             TokenType::Asterisk | TokenType::Slash => PRODUCT,
             _ => LOWEST,
@@ -253,7 +255,7 @@ impl Parser {
 
         while !self.peek_token_is(TokenType::Eof) && precedence < self.peek_precedence() {
             match self.peek_token.token_type {
-                TokenType::Plus | TokenType::Minus | TokenType::Asterisk | TokenType::Slash => {
+                TokenType::Plus | TokenType::Minus | TokenType::Asterisk | TokenType::Slash | TokenType::Eq | TokenType::Lt | TokenType::Gt => {
                     self.next_token();
                     left_expr = self.parse_infix_expression(left_expr)?;
                 }
