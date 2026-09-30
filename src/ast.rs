@@ -1,4 +1,5 @@
 use crate::tokens::Token;
+
 #[allow(dead_code)]
 pub trait Node {
     fn to_string(&self) -> String;
@@ -11,7 +12,8 @@ pub enum Statement {
     Const(ConstStatement),
     Block(BlockStatement),
     Function(FunctionStatement),
-    Expression(Expression),
+    If(IfStatement),        // <-- Added this variant
+    Expression(Expression), 
 }
 
 impl Node for Statement {
@@ -21,12 +23,12 @@ impl Node for Statement {
             Statement::Const(stmt) => stmt.to_string(),
             Statement::Block(stmt) => stmt.to_string(),
             Statement::Function(stmt) => stmt.to_string(),
+            Statement::If(stmt) => stmt.to_string(), // <-- Added this variant mapping
             Statement::Expression(expr) => expr.to_string(),
         }
     }
 }
 
-// Represents an input parameter name and type, e.g., "a: Int"
 #[derive(Debug, Clone, PartialEq)]
 pub struct Parameter {
     pub name: String,
@@ -41,8 +43,7 @@ pub struct BlockStatement {
 
 impl Node for BlockStatement {
     fn to_string(&self) -> String {
-        let body = self
-            .statements
+        let body = self.statements
             .iter()
             .map(|stmt| stmt.to_string())
             .collect::<Vec<String>>()
@@ -53,11 +54,11 @@ impl Node for BlockStatement {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionStatement {
-    pub token: Token,               // The 'fn' token
-    pub name: String,               // Function name
+    pub token: Token,              // The 'fn' token
+    pub name: String,              // Function name
     pub parameters: Vec<Parameter>, // List of inputs
-    pub return_type: String,        // Return type (defaults to "Void")
-    pub body: BlockStatement,       // Inner code block
+    pub return_type: String,       // Return type (defaults to "Void")
+    pub body: BlockStatement,      // Inner code block
 }
 
 impl Node for FunctionStatement {
@@ -74,8 +75,26 @@ impl Node for FunctionStatement {
             format!(" -> {}", self.return_type)
         };
 
-        // Clean, standard engineering approach without text-replacement hacks
         format!("fn {}({}){} {}", self.name, params, ret_str, self.body.to_string())
+    }
+}
+
+// Added the IfStatement structure layout
+#[derive(Debug, Clone, PartialEq)]
+pub struct IfStatement {
+    pub token: Token,                    // The 'if' token
+    pub condition: Expression,           // The condition expression
+    pub consequence: BlockStatement,     // Code block executed if true
+    pub alternative: Option<BlockStatement>, // Optional alternative block executed if false
+}
+
+impl Node for IfStatement {
+    fn to_string(&self) -> String {
+        let mut s = format!("if {} {}", self.condition.to_string(), self.consequence.to_string());
+        if let Some(alt) = &self.alternative {
+            s.push_str(&format!(" else {}", alt.to_string()));
+        }
+        s
     }
 }
 
@@ -111,22 +130,19 @@ impl Node for ConstStatement {
             Some(t) => format!(": {}", t),
             None => "".to_string(),
         };
-        format!(
-            "const {}{} = {}",
-            self.name,
-            type_str,
-            self.value.to_string()
-        )
+        format!("const {}{} = {}", self.name, type_str, self.value.to_string())
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     Identifier(String),
     IntegerLiteral(i64),
     FloatLiteral(f64),
     StringLiteral(String),
-    Infix(Box<Expression>, String, Box<Expression>),
+    BooleanLiteral(bool), // <-- Added this variant
+    Infix(Box<Expression>, String, Box<Expression>), 
 }
 
 impl Node for Expression {
@@ -136,6 +152,7 @@ impl Node for Expression {
             Expression::IntegerLiteral(val) => val.to_string(),
             Expression::FloatLiteral(val) => val.to_string(),
             Expression::StringLiteral(val) => format!("\"{}\"", val),
+            Expression::BooleanLiteral(val) => val.to_string(), // <-- Added this variant mapping
             Expression::Infix(left, op, right) => {
                 format!("({} {} {})", left.to_string(), op, right.to_string())
             }

@@ -37,6 +37,8 @@ pub enum TokenType {
   If,
   Else,
   Borrow,
+  True,
+  False,
 }
 
 // Global immutable Map for fast keyword resolution
@@ -49,6 +51,8 @@ pub static KEYWORDS: LazyLock<HashMap<&'static str, TokenType>> = LazyLock::new(
   m.insert("if", TokenType::If);
   m.insert("else", TokenType::Else);
   m.insert("borrow", TokenType::Borrow);
+  m.insert("True", TokenType::True);
+  m.insert("false", TokenType::False);
   m
 });
 
