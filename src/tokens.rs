@@ -28,6 +28,9 @@ pub enum TokenType {
   Rbrace,    // '}'
   Comma,     // ','
   Colon,     // ':'
+  Lt,     // '<'
+  Gt,     // '>'
+  Eq,     // '=='
 
   // Keywords
   Let,
