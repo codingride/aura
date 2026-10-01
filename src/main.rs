@@ -1,4 +1,9 @@
-mod tokens; mod lexer; mod ast; mod parser; mod codegen;
+mod tokens;
+mod lexer;
+mod ast;
+mod parser;
+mod codegen;
+mod semantic;
 
 use std::fs::File;
 use std::io::Write;
