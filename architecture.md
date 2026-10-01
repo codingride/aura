@@ -1,31 +1,33 @@
-# Aura Language Specification v0.2.0 (Era 2: Native Speed)
+# Aura Language Specification v0.3.0 (Era 3: Memory Safety)
 
 ## 1. Core Philosophy
 - **Human-First Syntax:** Minimal boilerplate, clean keywords, optional explicit typing.
 - **Unified Compilation:** Targets Native Machine Code (via LLVM) and WebAssembly (Wasm).
-- **Automated Ownership:** Compile-time memory management without a runtime garbage collector.
+- **Automated Ownership:** Compile-time memory lifecycle tracking without a runtime garbage collector.
 
 ## 2. Syntax & Grammar Rules
 ### Variables & Arithmetic
-- `let <identifier> [ : <type> ] = <expression>`
-- Binary arithmetic operations: `+`, `-`, `*`, `/` with operator precedence weights.
+- `let <identifier> [ : <type> ] = <expression>` (Mutable stack tracking)
+- `const <identifier> [ : <type> ] = <expression>` (Immutable protection tracking)
 
-### Conditionals & Logic (Updated)
-- Boolean Literals: `true` | `false`
-- Relational Comparisons: `<` | `>` | `==`
+### Conditionals & Logic
 - If Expression: `if <expression> <block> [ else <block> ]`
+- Relational Comparisons: `<`, `>`, `==`
 
 ## 3. Production Rust Compiler Architecture Pipeline
 1. **Source Code (`.au`)** -> Read via standard Linux POSIX file streams.
 2. **Lexer (`lexer.rs`)** -> Streamlines characters into Token structures. [Completed]
 3. **Parser (`parser.rs`)** -> Builds an Abstract Syntax Tree (AST). [Completed]
-4. **Code Generator (`codegen.rs`)** -> Emits LLVM IR assembly with custom basic block branching allocations. [Completed Branch Baseline]
+4. **Semantic Analyzer (`semantic.rs`)** -> (Active) Tracks variable lifecycles, scopes, and memory ownership rules before compilation.
+5. **Code Generator (`codegen.rs`)** -> Emits LLVM IR assembly with loaded pointers and branching blocks. [Completed Baseline]
+6. **Machine Assembler (Clang)** -> Packages intermediate streams into native binary executables. [Completed Baseline]
 
 ## 4. Historical Milestones
-- [✓] **Phase 1 Complete:** Tree-walk interpreter validated in Python (v0.1.0).
-- [✓] **Era 2 Frontend Complete:** Migrated pipeline to Rust on Ubuntu. Confirmed 0.00s mathematical and functional tree-building validation.
-- [✓] **LLVM Control Flow Complete:** Verified generation of raw conditional jumps (`br i1`) and isolated structural basic block segments (`then:`, `else:`, `merge:`).
+- [✓] **Era 1 Prototyped:** Tree-walk interpreter validated in Python (v0.1.0).
+- [✓] **Era 2 Frontend Upgraded:** Scaled tokenizer, Pratt Parser operator precedence, and functional structures to Rust.
+- [✓] **LLVM Generation & Tooling Achieved:** Engineered custom pointer loading loops and basic block conditional branching.
+- [✓] **Native Screen Output Realized:** Linked external C `printf` declarations to emit real hardware register outputs directly onto the terminal monitor monitor stream.
 
-## 5. Active Era 2 Implementation Goals
-- Add comparison operators (`<`, `>`, `==`) to `src/tokens.rs` and `src/lexer.rs`.
-- Integrate comparison tokens into our Pratt Parser operator priority tiers inside `src/parser.rs`.
+## 5. Active Era 3 Implementation Goals
+- Establish an isolated semantic tracking file asset (`src/semantic.rs`).
+- Build a Symbol Table framework to record scope depth boundaries and detect out-of-scope allocations.
