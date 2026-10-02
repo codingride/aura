@@ -18,7 +18,7 @@
 1. **Source Code (`.au`)** -> Read via standard Linux POSIX file streams.
 2. **Lexer (`lexer.rs`)** -> Streamlines characters into Token structures. [Completed]
 3. **Parser (`parser.rs`)** -> Builds an Abstract Syntax Tree (AST). [Completed]
-4. **Semantic Analyzer (`semantic.rs`)** -> (Active) Tracks variable lifecycles, scopes, and memory ownership rules before compilation.
+4. **Semantic Analyzer (`semantic.rs`)** -> Tracks variable lifecycles, scopes, and memory ownership rules before compilation. [Completed Scope Validation]
 5. **Code Generator (`codegen.rs`)** -> Emits LLVM IR assembly with loaded pointers and branching blocks. [Completed Baseline]
 6. **Machine Assembler (Clang)** -> Packages intermediate streams into native binary executables. [Completed Baseline]
 
@@ -26,8 +26,8 @@
 - [✓] **Era 1 Prototyped:** Tree-walk interpreter validated in Python (v0.1.0).
 - [✓] **Era 2 Frontend Upgraded:** Scaled tokenizer, Pratt Parser operator precedence, and functional structures to Rust.
 - [✓] **LLVM Generation & Tooling Achieved:** Engineered custom pointer loading loops and basic block conditional branching.
-- [✓] **Native Screen Output Realized:** Linked external C `printf` declarations to emit real hardware register outputs directly onto the terminal monitor monitor stream.
+- [✓] **Native Screen Output Realized:** Linked external C `printf` declarations to emit real hardware register outputs directly onto the terminal monitor stream.
+- [✓] **Static Memory Sentinel Verified:** Successfully built a compile-time scope block tracker capable of blocking out-of-scope leakages.
 
 ## 5. Active Era 3 Implementation Goals
-- Establish an isolated semantic tracking file asset (`src/semantic.rs`).
-- Build a Symbol Table framework to record scope depth boundaries and detect out-of-scope allocations.
+- Extend `src/semantic.rs` to validate variable mutability constraints (enforcing immutability checks on constants).

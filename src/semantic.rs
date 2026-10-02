@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+#[allow(dead_code)]
 pub struct VariableMeta {
     pub name: String,
     pub is_immutable: bool,
