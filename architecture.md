@@ -28,6 +28,8 @@
 - [✓] **LLVM Generation & Tooling Achieved:** Engineered custom pointer loading loops and basic block conditional branching.
 - [✓] **Native Screen Output Realized:** Linked external C `printf` declarations to emit real hardware register outputs directly onto the terminal monitor stream.
 - [✓] **Static Memory Sentinel Verified:** Successfully built a compile-time scope block tracker capable of blocking out-of-scope leakages.
+- [✓] **Scope Lifecycle Sentinel Verified:** Blocked out-of-scope leakages at compile time.
+- [✓] **Immutability Sentinel Verified:** Successfully verified symbol-table protection parameters intercepting unauthorized constant variable overwrites.
 
 ## 5. Active Era 3 Implementation Goals
-- Extend `src/semantic.rs` to validate variable mutability constraints (enforcing immutability checks on constants).
+- Integrate standalone assignment parsing syntax inside `src/ast.rs` and `src/parser.rs`.
