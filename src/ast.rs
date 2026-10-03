@@ -10,9 +10,10 @@ pub trait Node {
 pub enum Statement {
     Let(LetStatement),
     Const(ConstStatement),
+    Assignment(AssignmentStatement), // <-- Add this variant
     Block(BlockStatement),
     Function(FunctionStatement),
-    If(IfStatement),        // <-- Added this variant
+    If(IfStatement),
     Expression(Expression), 
 }
 
@@ -21,9 +22,10 @@ impl Node for Statement {
         match self {
             Statement::Let(stmt) => stmt.to_string(),
             Statement::Const(stmt) => stmt.to_string(),
+            Statement::Assignment(stmt) => stmt.to_string(), // <-- Add this mapping
             Statement::Block(stmt) => stmt.to_string(),
             Statement::Function(stmt) => stmt.to_string(),
-            Statement::If(stmt) => stmt.to_string(), // <-- Added this variant mapping
+            Statement::If(stmt) => stmt.to_string(),
             Statement::Expression(expr) => expr.to_string(),
         }
     }
@@ -171,5 +173,18 @@ impl Node for Program {
             .map(|stmt| stmt.to_string())
             .collect::<Vec<String>>()
             .join("\n")
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AssignmentStatement {
+    pub token: Token,     // The Assign '=' token
+    pub name: String,     // Variable identifier being targeted
+    pub value: Expression, // The new expression value being assigned
+}
+
+impl Node for AssignmentStatement {
+    fn to_string(&self) -> String {
+        format!("{} = {}", self.name, self.value.to_string())
     }
 }

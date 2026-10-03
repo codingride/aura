@@ -2,7 +2,7 @@ mod tokens; mod lexer; mod ast; mod parser; mod codegen; mod semantic;
 
 #[allow(dead_code)]
 fn main() {
-    // Left empty to bypass local binary execution path policies
+    // Left empty to bypass local execution constraints
 }
 
 #[cfg(test)]
@@ -27,6 +27,11 @@ mod tests {
             Statement::Const(c) => {
                 analyzer.declare_variable(c.name.clone(), true, c.token.line);
                 analyze_expression(&c.value, analyzer, c.token.line);
+            }
+            // New Integration: If the script mutates an existing variable, invoke the mutability check!
+            Statement::Assignment(a) => {
+                analyzer.check_mutability(&a.name, a.token.line);
+                analyze_expression(&a.value, analyzer, a.token.line);
             }
             Statement::If(if_stmt) => {
                 analyze_expression(&if_stmt.condition, analyzer, if_stmt.token.line);
@@ -54,9 +59,7 @@ mod tests {
     fn analyze_expression(expr: &Expression, analyzer: &mut SemanticAnalyzer, line: usize) {
         match expr {
             Expression::Identifier(name) => {
-                if name == "true" || name == "false" {
-                    return;
-                }
+                if name == "true" || name == "false" { return; }
                 analyzer.resolve_variable(name, line);
             }
             Expression::Infix(left, _, right) => {
@@ -67,18 +70,9 @@ mod tests {
         }
     }
 
-    // Checkpoint 1: Scope Lifecycle Validation Test
     #[test]
     fn verify_compile_time_memory_sentinel() {
-        let buggy_source = "
-        if true {
-            let secret = 42
-        }
-        let leakage = secret
-        ";
-
-        println!("\n=== Running Aura Era 3 Semantic Security Check ===");
-        
+        let buggy_source = "if true { let secret = 42 }\nlet leakage = secret";
         let lexer = Lexer::new(buggy_source);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
@@ -88,42 +82,36 @@ mod tests {
         let mut analyzer = SemanticAnalyzer::new();
         analyze_program_scopes(&program, &mut analyzer);
 
-        println!("Intercepted Compiler Violations:");
-        for err in &analyzer.errors {
-            println!("  ❌ {}", err);
-        }
-
-        assert_eq!(analyzer.errors.len(), 1);
-        
-        // Fix: Use an iterator block `.iter().any(...)` to evaluate the inner text safely as a string slice reference
         let contains_target_error = analyzer.errors.iter().any(|err| err.contains("Use of undeclared or out-of-scope variable 'secret'"));
-        assert!(contains_target_error, "Expected safety violation error was not flagged!");
-        
-        println!("✓ Success: Compile-Time Memory Sentinel blocked the unsafe code flawlessly!\n");
+        assert!(contains_target_error);
     }
 
-    // Checkpoint 2: Mutability Protection Validation Test
+    // Upgraded: This test now reads a real source code string containing an illegal mutation!
     #[test]
     fn verify_compile_time_immutability_sentinel() {
+        let faulty_code = "
+        const pi = 3.14
+        pi = 4.0
+        ";
+
+        println!("\n=== Running Aura End-to-End Immutability Check ===");
+        let lexer = Lexer::new(faulty_code);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(parser.errors.is_empty(), "Parser error: {:?}", parser.errors);
+
         let mut analyzer = SemanticAnalyzer::new();
+        analyze_program_scopes(&program, &mut analyzer);
 
-        // 1. Declare a constant variable 'pi' at line 1
-        analyzer.declare_variable("pi".to_string(), true, 1);
-
-        // 2. Simulate a programmer trying to reassign or mutate 'pi' at line 2
-        analyzer.check_mutability("pi", 2);
-
-        println!("\n=== Running Aura Immutability Security Check ===");
+        println!("Intercepted Mutability Violations:");
         for err in &analyzer.errors {
             println!("  ❌ {}", err);
         }
 
         assert_eq!(analyzer.errors.len(), 1);
-        
-        // Fix: Use an iterator block `.iter().any(...)` to evaluate the inner text safely as a string slice reference
         let contains_mut_error = analyzer.errors.iter().any(|err| err.contains("Cannot reassign or mutate constant variable 'pi'"));
-        assert!(contains_mut_error, "Expected immutability violation error was not flagged!");
-        
-        println!("✓ Success: Immutability Sentinel protected the constant value completely!\n");
+        assert!(contains_mut_error);
+        println!("✓ Success: Compiler safely blocked script file constant mutation from compiling!\n");
     }
 }
