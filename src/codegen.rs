@@ -1,4 +1,4 @@
-use crate::ast::{Program, Statement, Expression, BlockStatement};
+use crate::ast::{Program, Statement, Expression, BlockStatement, FunctionStatement};
 
 #[allow(dead_code)]
 pub struct CodeGenerator {
@@ -16,27 +16,61 @@ impl CodeGenerator {
     }
 
     pub fn generate(&mut self, program: &Program) -> String {
-        let mut ir = String::new();
-        ir.push_str("; ModuleID = 'aura_main'\nsource_filename = \"main.au\"\n\n");
+        let mut global_ir = String::new();
+        let mut main_body_ir = String::new();
         
-        // 1. Declare the global formatting string constant for printing integers with a newline
-        ir.push_str("@.str.print_int = private unnamed_addr constant [4 x i8] c\"%d\\0A\\00\", align 1\n\n");
-        
-        // 2. Declare the external standard C library function print module
-        ir.push_str("declare i32 @printf(ptr, ...)\n\n");
-
-        ir.push_str("define i32 @main() {\n");
-        ir.push_str("entry:\n");
-
-        ir.push_str("  %age = alloca i64, align 8\n");
-        ir.push_str("  store i64 25, i64* %age, align 8\n\n");
+        global_ir.push_str("; ModuleID = 'aura_main'\nsource_filename = \"main.au\"\n\n");
+        global_ir.push_str("@.str.print_int = private unnamed_addr constant [4 x i8] c\"%d\\0A\\00\", align 1\n");
+        global_ir.push_str("declare i32 @printf(ptr, ...)\n\n");
 
         for stmt in &program.statements {
-            ir.push_str(&self.gen_statement(stmt));
+            match stmt {
+                Statement::Function(func_stmt) => {
+                    global_ir.push_str(&self.gen_function(func_stmt));
+                }
+                _ => {
+                    main_body_ir.push_str(&self.gen_statement(stmt));
+                }
+            }
         }
         
-        ir.push_str("  ret i32 0\n");
-        ir.push_str("}\n");
+        global_ir.push_str("define i32 @main() {\nentry:\n");
+        global_ir.push_str("  %age = alloca i64, align 8\n");
+        global_ir.push_str("  store i64 25, i64* %age, align 8\n\n");
+        global_ir.push_str(&main_body_ir);
+        global_ir.push_str("  ret i32 0\n}\n");
+        
+        global_ir
+    }
+
+    fn gen_function(&mut self, func: &FunctionStatement) -> String {
+        let mut ir = String::new();
+        let llvm_ret_type = if func.return_type == "Void" { "void" } else { "i64" };
+        
+        let params_signature = func.parameters
+            .iter()
+            .map(|p| format!("i64 %{}", p.name))
+            .collect::<Vec<String>>()
+            .join(", ");
+            
+        // Fix: Escaped the opening brace by doubling it to '{{' so Rust formats the block string safely
+        ir.push_str(&format!("define {} @{}({}) {{\nentry:\n", llvm_ret_type, func.name, params_signature));
+        
+        for param in &func.parameters {
+            ir.push_str(&format!("  %_{0} = alloca i64, align 8\n", param.name));
+            ir.push_str(&format!("  store i64 %{0}, i64* %_{0}, align 8\n", param.name));
+        }
+        ir.push_str("\n");
+
+        ir.push_str(&self.gen_block(&func.body));
+        
+        if llvm_ret_type == "void" {
+            ir.push_str("  ret void\n");
+        } else {
+            ir.push_str("  ret i64 0\n");
+        }
+        
+        ir.push_str("}\n\n");
         ir
     }
 
@@ -49,7 +83,6 @@ impl CodeGenerator {
                 ir.push_str(&format!("  %{} = alloca i64, align 8\n", l.name));
                 ir.push_str(&format!("  store i64 {}, i64* %{}, align 8\n\n", val, l.name));
                 
-                // --- Fix: Swapped 'let _unused_call' with a standard LLVM register value layout ---
                 self.register_count += 1;
                 let loaded_reg = self.register_count;
                 self.register_count += 1;
@@ -64,6 +97,11 @@ impl CodeGenerator {
                 let val = self.gen_expression(&c.value, &mut ir);
                 ir.push_str(&format!("  %{} = alloca i64, align 8\n", c.name));
                 ir.push_str(&format!("  store i64 {}, i64* %{}, align 8\n\n", val, c.name));
+            }
+            Statement::Assignment(a) => {
+                ir.push_str(&format!("; update reassignment {} = ...\n", a.name));
+                let val = self.gen_expression(&a.value, &mut ir);
+                ir.push_str(&format!("  store i64 {}, i64* %{}, align 8\n\n", val, a.name));
             }
             Statement::If(if_stmt) => {
                 ir.push_str("; if condition branching\n");

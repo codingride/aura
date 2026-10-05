@@ -16,3 +16,6 @@ ENV/
 
 # Added by cargo
 /target
+
+# Added by Abdullah Alghamdi
+output.ll
