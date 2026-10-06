@@ -143,8 +143,9 @@ pub enum Expression {
     IntegerLiteral(i64),
     FloatLiteral(f64),
     StringLiteral(String),
-    BooleanLiteral(bool), // <-- Added this variant
+    BooleanLiteral(bool), 
     Infix(Box<Expression>, String, Box<Expression>), 
+    FunctionCall(String, Vec<Expression>),
 }
 
 impl Node for Expression {
@@ -154,9 +155,13 @@ impl Node for Expression {
             Expression::IntegerLiteral(val) => val.to_string(),
             Expression::FloatLiteral(val) => val.to_string(),
             Expression::StringLiteral(val) => format!("\"{}\"", val),
-            Expression::BooleanLiteral(val) => val.to_string(), // <-- Added this variant mapping
+            Expression::BooleanLiteral(val) => val.to_string(), // Fixed: Stray word removed!
             Expression::Infix(left, op, right) => {
                 format!("({} {} {})", left.to_string(), op, right.to_string())
+            }
+            Expression::FunctionCall(name, args) => {
+                let args_str = args.iter().map(|a| a.to_string()).collect::<Vec<String>>().join(", ");
+                format!("{}({})", name, args_str)
             }
         }
     }

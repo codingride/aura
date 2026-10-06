@@ -6,6 +6,7 @@ const LOWEST: i32 = 1;
 const COMPARISON: i32 = 2; 
 const SUM: i32 = 3;     
 const PRODUCT: i32 = 4; 
+const CALL: i32 = 5; // <-- Add high call precedence tier for parenthesized arguments!
 
 pub struct Parser {
     lexer: Lexer,
@@ -18,7 +19,6 @@ impl Parser {
     pub fn new(mut lexer: Lexer) -> Self {
         let cur_token = lexer.next_token();
         let peek_token = lexer.next_token();
-        
         Parser { lexer, cur_token, peek_token, errors: Vec::new() }
     }
 
@@ -40,6 +40,7 @@ impl Parser {
 
     fn token_precedence(&self, token_type: TokenType) -> i32 {
         match token_type {
+            TokenType::Lparen => CALL, // <-- Register '(' with CALL priority precedence!
             TokenType::Eq | TokenType::Lt | TokenType::Gt => COMPARISON,
             TokenType::Plus | TokenType::Minus => SUM,
             TokenType::Asterisk | TokenType::Slash => PRODUCT,
@@ -67,16 +68,21 @@ impl Parser {
             TokenType::Const => self.parse_const_statement().map(Statement::Const),
             TokenType::Fn => self.parse_function_statement().map(Statement::Function),
             TokenType::If => self.parse_if_statement().map(Statement::If),
-            // Update: If a line starts with an Identifier, check if it's a mutation assignment statement
             TokenType::Identifier => {
                 if self.peek_token_is(TokenType::Assign) {
                     self.parse_assignment_statement().map(Statement::Assignment)
                 } else {
-                    None
+                    // Fall back to general expression statements if it's a raw functional invoke call
+                    self.parse_expression_statement()
                 }
             }
             _ => None,
         }
+    }
+
+    fn parse_expression_statement(&mut self) -> Option<Statement> {
+        let expr = self.parse_expression(LOWEST)?;
+        Some(Statement::Expression(expr))
     }
 
     fn parse_let_statement(&mut self) -> Option<LetStatement> {
@@ -115,16 +121,12 @@ impl Parser {
         Some(ConstStatement { token, name, explicit_type, value: self.parse_expression(LOWEST)? })
     }
 
-    // New Function: Parses '<identifier> = <expression>'
     fn parse_assignment_statement(&mut self) -> Option<AssignmentStatement> {
         let name = self.cur_token.literal.clone();
-        
-        self.next_token(); // Move to '='
+        self.next_token(); 
         let token = self.cur_token.clone();
-        
-        self.next_token(); // Move past '=' to start of expression value
+        self.next_token(); 
         let value = self.parse_expression(LOWEST)?;
-        
         Some(AssignmentStatement { token, name, value })
     }
 
@@ -204,11 +206,16 @@ impl Parser {
             _ => { self.errors.push(format!("Line {}: Prefix match error", self.cur_token.line)); None }
         }?;
 
+        // Updated Pratt processing loop to intercept high-precedence function call arguments!
         while !self.peek_token_is(TokenType::Eof) && precedence < self.peek_precedence() {
             match self.peek_token.token_type {
                 TokenType::Plus | TokenType::Minus | TokenType::Asterisk | TokenType::Slash |
                 TokenType::Eq | TokenType::Lt | TokenType::Gt => {
                     self.next_token(); left_expr = self.parse_infix_expression(left_expr)?;
+                }
+                TokenType::Lparen => {
+                    self.next_token();
+                    left_expr = self.parse_function_call_arguments(left_expr)?;
                 }
                 _ => return Some(left_expr),
             }
@@ -221,5 +228,27 @@ impl Parser {
         let precedence = self.cur_precedence();
         self.next_token(); 
         Some(Expression::Infix(Box::new(left), operator, Box::new(self.parse_expression(precedence)?)))
+    }
+
+    // New Function: Parses the comma-separated arguments inside 'calculate(5, 10)'
+    fn parse_function_call_arguments(&mut self, left: Expression) -> Option<Expression> {
+        let function_name = match left {
+            Expression::Identifier(name) => name,
+            _ => { self.errors.push("Expected function identifier name before call".to_string()); return None; }
+        };
+        let mut args = Vec::new();
+        if self.peek_token_is(TokenType::Rparen) {
+            self.next_token();
+            return Some(Expression::FunctionCall(function_name, args));
+        }
+        self.next_token(); // Move to first argument expression
+        args.push(self.parse_expression(LOWEST)?);
+        while self.peek_token_is(TokenType::Comma) {
+            self.next_token(); // On ','
+            self.next_token(); // Move to next expression argument
+            args.push(self.parse_expression(LOWEST)?);
+        }
+        if !self.expect_peek(TokenType::Rparen) { return None; }
+        Some(Expression::FunctionCall(function_name, args))
     }
 }

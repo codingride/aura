@@ -158,6 +158,22 @@ impl CodeGenerator {
                 stream.push_str(&format!("  %{} = load i64, ptr %{}, align 8\n", reg, n));
                 format!("%{}", reg)
             }
+            // New Component: Generate the low-level function execution instruction call line!
+            Expression::FunctionCall(name, args) => {
+                let mut compiled_args = Vec::new();
+                for arg in args {
+                    // Evaluate each argument expression recursively into a value register
+                    compiled_args.push(format!("i64 {}", self.gen_expression(arg, stream)));
+                }
+                let args_signature = compiled_args.join(", ");
+                
+                self.register_count += 1;
+                let reg = self.register_count;
+                
+                // Write the explicit hardware call line assuming i64 return metrics for arithmetic routines
+                stream.push_str(&format!("  %{} = call i64 @{}({})\n", reg, name, args_signature));
+                format!("%{}", reg)
+            }
             Expression::Infix(l, op, r) => {
                 let lv = self.gen_expression(l, stream); 
                 let rv = self.gen_expression(r, stream);
