@@ -1,3 +1,5 @@
 // Our first official working program in Aura
 let greeting = "Hello World! Aura is alive. 🚀"
 let print = greeting
+let value = 5 + 10 * 2
+const threshold = 100
