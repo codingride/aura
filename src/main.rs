@@ -4,6 +4,7 @@ use std::env;
 use std::fs::File;
 use std::io::{self, Read, Write};
 use std::path::Path;
+use std::process::Command; // <-- Add this critical process execution tool!
 
 use crate::lexer::Lexer;
 use crate::parser::Parser;
@@ -46,7 +47,6 @@ fn main() -> io::Result<()> {
 
     // 4. Run Static Semantic Analysis Scope Verifications
     let mut analyzer = SemanticAnalyzer::new();
-    // (Helper evaluation call mirror abstracted from internal testing layouts)
     for stmt in &program.statements {
         match stmt {
             ast::Statement::Let(l) => analyzer.declare_variable(l.name.clone(), false, l.token.line),
@@ -67,13 +67,38 @@ fn main() -> io::Result<()> {
     let ir_output = generator.generate(&program);
 
     // 6. Write the finalized compilation blocks directly out into a physical output.ll file
-    let output_path = "output.ll";
-    let mut out_file = File::create(output_path)?;
+    let temp_ll_path = "output.ll";
+    let mut out_file = File::create(temp_ll_path)?;
     out_file.write_all(ir_output.as_bytes())?;
 
-    println!("✓ Successfully compiled assembly targets written to disk file: {}", output_path);
-    println!("👉 Next step: Run 'clang output.ll -o aura_program' to pack your native binary executable!\n");
+    println!("✓ Intermediate assembly written to: {}", temp_ll_path);
 
+    // 7. --- New Automated System Binary Packaging Stage ---
+    println!("⚙️  Spawning background system process to link native assembler via Clang...");
+    
+    let binary_output_name = "aura_program";
+    
+    // Spawns: clang output.ll -o aura_program
+    let clang_status = Command::new("clang")
+        .arg(temp_ll_path)
+        .arg("-o")
+        .arg(binary_output_name)
+        .status(); // Executes and waits for clang to complete
+
+    match clang_status {
+        Ok(status) if status.success() => {
+            println!("🎉 SUCCESS: Binary compilation successfully completed!");
+            println!("🚀 Your standalone native executable machine binary is ready: ./{}", binary_output_name);
+        }
+        Ok(status) => {
+            println!("❌ Clang Error: Assembler failed to pack binary with exit status: {}", status);
+        }
+        Err(e) => {
+            println!("❌ System Process Error: Could not execute 'clang' compiler toolchain. Is it installed? Details: {}", e);
+        }
+    }
+
+    println!();
     Ok(())
 }
 
@@ -81,7 +106,6 @@ fn main() -> io::Result<()> {
 mod tests {
     use crate::lexer::Lexer;
     use crate::parser::Parser;
-    use crate::ast::Node;
     use crate::codegen::CodeGenerator;
 
     #[test]
