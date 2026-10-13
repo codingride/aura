@@ -4,6 +4,20 @@ source_filename = "main.au"
 @.str.print_int = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
 declare i32 @printf(ptr, ...)
 
+define i64 @add(i64 %a, i64 %b) {
+entry:
+  %_a = alloca i64, align 8
+  store i64 %a, i64* %_a, align 8
+  %_b = alloca i64, align 8
+  store i64 %b, i64* %_b, align 8
+
+; return expression sequence
+  %10 = load i64, ptr %_a, align 8
+  %11 = load i64, ptr %_b, align 8
+  %12 = add nsw i64 %10, %11
+  ret i64 %12
+}
+
 define i32 @main() {
 entry:
   %age = alloca i64, align 8
@@ -39,6 +53,15 @@ entry:
 ; const threshold = ...
   %threshold = alloca i64, align 8
   store i64 100, i64* %threshold, align 8
+
+; let result = ...
+  %13 = call i64 @add(i64 20, i64 22)
+  %result = alloca i64, align 8
+  store i64 %13, i64* %result, align 8
+
+  ; print the variable out to screen
+  %14 = load i64, ptr %result, align 8
+  %15 = call i32 (ptr, ...) @printf(ptr @.str.print_int, i64 %14)
 
   ret i32 0
 }

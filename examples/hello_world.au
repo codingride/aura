@@ -3,3 +3,9 @@ let greeting = "Hello World! Aura is alive. 🚀"
 let print = greeting
 let value = 5 + 10 * 2
 const threshold = 100
+
+fn add(a: Int, b: Int) -> Int {
+    return a + b
+}
+
+let result = add(20, 22)

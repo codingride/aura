@@ -107,11 +107,10 @@ aura-lang/
 - [✓] **Native Screen Output Achieved:** Bound external C `printf` declarations to print physical registers directly into the terminal screen.
 - [✓] **Static Sentinels Active (v0.3.0):** Programmed a compile-time Symbol Table to block memory leaks and protect constants from mutate reassignments.
 - [✓] **Cross-Functional Calling Complete:** Enabled the compilation of explicit multi-routine execution loops utilizing low-level LLVM `call` pointers.
+- [✓] **Assembler Toolchain Automated:** Integrated background process spawning via `std::process::Command` to compile binary targets automatically.
 
 ---
 
-## 6. Active Era 2/3 Integration Goals
-- Expand the Expression enum inside `src/ast.rs` to support Function Call expressions.
-- Update `src/parser.rs` to read parenthesized function arguments separated by commas.
-- Extend `src/codegen.rs` to generate low-level LLVM `call` assembly blocks with matching parameter structures.
-- Overwrite the empty root `main()` driver inside `src/main.rs` to process command-line file arguments natively via the standard Linux filesystem.
+## 6. Active Implementation Goals
+- Integrate the `return` keyword syntax inside `src/ast.rs` and `src/parser.rs`.
+- Update `src/codegen.rs` to replace static `ret i64 0` stubs with dynamic loaded register expressions.

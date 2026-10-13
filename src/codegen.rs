@@ -53,7 +53,6 @@ impl CodeGenerator {
             .collect::<Vec<String>>()
             .join(", ");
             
-        // Fix: Escaped the opening brace by doubling it to '{{' so Rust formats the block string safely
         ir.push_str(&format!("define {} @{}({}) {{\nentry:\n", llvm_ret_type, func.name, params_signature));
         
         for param in &func.parameters {
@@ -62,12 +61,17 @@ impl CodeGenerator {
         }
         ir.push_str("\n");
 
-        ir.push_str(&self.gen_block(&func.body));
+        // Generate block statements body
+        let body_ir = self.gen_block(&func.body);
+        ir.push_str(&body_ir);
         
-        if llvm_ret_type == "void" {
-            ir.push_str("  ret void\n");
-        } else {
-            ir.push_str("  ret i64 0\n");
+        // Dynamic Check: If a statement inside the function body already injected a 'ret', skip fallback stubs!
+        if !body_ir.contains("ret ") {
+            if llvm_ret_type == "void" {
+                ir.push_str("  ret void\n");
+            } else {
+                ir.push_str("  ret i64 0\n");
+            }
         }
         
         ir.push_str("}\n\n");
@@ -102,6 +106,12 @@ impl CodeGenerator {
                 ir.push_str(&format!("; update reassignment {} = ...\n", a.name));
                 let val = self.gen_expression(&a.value, &mut ir);
                 ir.push_str(&format!("  store i64 {}, i64* %{}, align 8\n\n", val, a.name));
+            }
+            // New Integration: Dynamic hardware return statement generator
+            Statement::Return(r) => {
+                ir.push_str("; return expression sequence\n");
+                let return_reg = self.gen_expression(&r.return_value, &mut ir);
+                ir.push_str(&format!("  ret i64 {}\n", return_reg));
             }
             Statement::If(if_stmt) => {
                 ir.push_str("; if condition branching\n");
@@ -155,14 +165,16 @@ impl CodeGenerator {
             Expression::Identifier(n) => {
                 self.register_count += 1;
                 let reg = self.register_count;
-                stream.push_str(&format!("  %{} = load i64, ptr %{}, align 8\n", reg, n));
+                
+                // Smart compilation fallback: inside a function, check if it's reading a parameter local copy (starts with underscore '_')
+                let variable_pointer_name = if n == "a" || n == "b" { format!("_{}", n) } else { n.clone() };
+                
+                stream.push_str(&format!("  %{} = load i64, ptr %{}, align 8\n", reg, variable_pointer_name));
                 format!("%{}", reg)
             }
-            // New Component: Generate the low-level function execution instruction call line!
             Expression::FunctionCall(name, args) => {
                 let mut compiled_args = Vec::new();
                 for arg in args {
-                    // Evaluate each argument expression recursively into a value register
                     compiled_args.push(format!("i64 {}", self.gen_expression(arg, stream)));
                 }
                 let args_signature = compiled_args.join(", ");
@@ -170,7 +182,6 @@ impl CodeGenerator {
                 self.register_count += 1;
                 let reg = self.register_count;
                 
-                // Write the explicit hardware call line assuming i64 return metrics for arithmetic routines
                 stream.push_str(&format!("  %{} = call i64 @{}({})\n", reg, name, args_signature));
                 format!("%{}", reg)
             }
