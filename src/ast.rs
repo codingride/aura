@@ -10,7 +10,8 @@ pub trait Node {
 pub enum Statement {
     Let(LetStatement),
     Const(ConstStatement),
-    Assignment(AssignmentStatement), // <-- Add this variant
+    Assignment(AssignmentStatement),
+    Return(ReturnStatement),
     Block(BlockStatement),
     Function(FunctionStatement),
     If(IfStatement),
@@ -22,7 +23,8 @@ impl Node for Statement {
         match self {
             Statement::Let(stmt) => stmt.to_string(),
             Statement::Const(stmt) => stmt.to_string(),
-            Statement::Assignment(stmt) => stmt.to_string(), // <-- Add this mapping
+            Statement::Assignment(stmt) => stmt.to_string(),
+            Statement::Return(stmt) => stmt.to_string(),
             Statement::Block(stmt) => stmt.to_string(),
             Statement::Function(stmt) => stmt.to_string(),
             Statement::If(stmt) => stmt.to_string(),
@@ -191,5 +193,17 @@ pub struct AssignmentStatement {
 impl Node for AssignmentStatement {
     fn to_string(&self) -> String {
         format!("{} = {}", self.name, self.value.to_string())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReturnStatement {
+    pub token: Token,         // The 'return' token
+    pub return_value: Expression, // The expression value being handed back
+}
+
+impl Node for ReturnStatement {
+    fn to_string(&self) -> String {
+        format!("return {}", self.return_value.to_string())
     }
 }
