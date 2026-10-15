@@ -18,4 +18,5 @@ ENV/
 /target
 
 # Added by Abdullah Alghamdi
-output.ll
+*.ll
+aura_program
