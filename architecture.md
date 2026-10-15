@@ -21,7 +21,7 @@
 4. **Semantic Analyzer (`semantic.rs`)** -> Tracks variable lifecycles, scopes, and memory ownership rules before compilation. [Completed Scope Validation]
 5. **Code Generator (`codegen.rs`)** -> Emits LLVM IR assembly with loaded pointers and branching blocks. [Completed Baseline]
 6. **Machine Assembler (Clang)** -> Packages intermediate streams into native binary executables. [Completed Baseline]
-
+7. **Source Code Ingestion:** Accepts structural `.au` scripts via standard file paths OR streams live user input character blocks line-by-line through an interactive REPL shell environment. [Active]
 ## 4. Historical Milestones
 - [✓] **Era 1 Prototyped:** Tree-walk interpreter validated in Python (v0.1.0).
 - [✓] **Era 2 Frontend Upgraded:** Scaled tokenizer, Pratt Parser operator precedence, and functional structures to Rust.
@@ -94,6 +94,7 @@ aura-lang/
 4. **Static Semantic Validation (`semantic.rs`):** Analyzes the AST before compilation to enforce lifecycle boundaries, catch out-of-scope leakages, and block illegal modifications to `const` variables.
 5. **Intermediate Representation Generation (`codegen.rs`):** Walks the verified AST to emit clean, unoptimized LLVM IR assembly text files (`.ll`).
 6. **Machine Assembler (Clang Toolchain):** Compiles, links, and packages the generated `.ll` files directly into standalone native machine binary programs (`aura_program`).
+7. 
 
 ---
 

@@ -2,9 +2,9 @@ use crate::tokens::{Token, TokenType, KEYWORDS};
 
 pub struct Lexer {
     source: Vec<char>,
-    position: usize,       // Points to current char
-    read_position: usize,  // Points after current char
-    ch: char,              // Current char under examination
+    position: usize,
+    read_position: usize,
+    ch: char,
     line: usize,
     column: usize,
 }
@@ -35,34 +35,22 @@ impl Lexer {
     }
 
     fn peek_char(&self) -> char {
-        if self.read_position >= self.source.len() {
-            '\0'
-        } else {
-            self.source[self.read_position]
-        }
+        if self.read_position >= self.source.len() { '\0' } else { self.source[self.read_position] }
     }
 
     fn skip_whitespace_and_comments(&mut self) {
         loop {
             if self.ch.is_whitespace() {
-                if self.ch == '\n' {
-                    self.line += 1;
-                    self.column = 0;
-                }
+                if self.ch == '\n' { self.line += 1; self.column = 0; }
                 self.read_char();
             } else if self.ch == '/' && self.peek_char() == '/' {
-                while self.ch != '\n' && self.ch != '\0' {
-                    self.read_char();
-                }
-            } else {
-                break;
-            }
+                while self.ch != '\n' && self.ch != '\0' { self.read_char(); }
+            } else { break; }
         }
     }
 
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace_and_comments();
-
         let start_col = self.column;
         let token = match self.ch {
             '=' => {
@@ -92,61 +80,49 @@ impl Lexer {
                     Token::new(TokenType::Minus, self.ch.to_string(), self.line, start_col)
                 }
             }
-            '"' => {
-                let literal = self.read_string();
-                return Token::new(TokenType::StringLit, literal, self.line, start_col);
-            }
+            '"' => return Token::new(TokenType::StringLit, self.read_string(), self.line, start_col),
             '\0' => Token::new(TokenType::Eof, "".to_string(), self.line, start_col),
             c if c.is_alphabetic() || c == '_' => {
-                let literal = self.read_identifier();
-                let token_type = KEYWORDS.get(literal.as_str()).cloned().unwrap_or(TokenType::Identifier);
-                return Token::new(token_type, literal, self.line, start_col);
+                let lit = self.read_identifier();
+                let t = KEYWORDS.get(lit.as_str()).cloned().unwrap_or(TokenType::Identifier);
+                return Token::new(t, lit, self.line, start_col);
             }
             c if c.is_numeric() => {
-                let (literal, is_float) = self.read_number();
-                let token_type = if is_float { TokenType::FloatLit } else { TokenType::IntLit };
-                return Token::new(token_type, literal, self.line, start_col);
+                let (lit, is_f) = self.read_number();
+                let t = if is_f { TokenType::FloatLit } else { TokenType::IntLit };
+                return Token::new(t, lit, self.line, start_col);
             }
             _ => Token::new(TokenType::Illegal, self.ch.to_string(), self.line, start_col),
         };
-
         self.read_char();
         token
     }
 
     fn read_identifier(&mut self) -> String {
         let start = self.position;
-        while self.ch.is_alphanumeric() || self.ch == '_' {
-            self.read_char();
-        }
+        while self.ch.is_alphanumeric() || self.ch == '_' { self.read_char(); }
         self.source[start..self.position].iter().collect()
     }
 
     fn read_number(&mut self) -> (String, bool) {
         let start = self.position;
-        let mut is_float = false;
+        let mut is_f = false;
         while self.ch.is_numeric() || self.ch == '.' {
-            if self.ch == '.' {
-                if is_float { break; }
-                is_float = true;
-            }
+            if self.ch == '.' { if is_f { break; } is_f = true; }
             self.read_char();
         }
-        (self.source[start..self.position].iter().collect(), is_float)
+        (self.source[start..self.position].iter().collect(), is_f)
     }
 
     fn read_string(&mut self) -> String {
-        self.read_char(); // Advance past opening quote
+        self.read_char();
         let start = self.position;
         while self.ch != '"' && self.ch != '\0' {
-            if self.ch == '\n' {
-                self.line += 1;
-                self.column = 0;
-            }
+            if self.ch == '\n' { self.line += 1; self.column = 0; }
             self.read_char();
         }
-        let string_val: String = self.source[start..self.position].iter().collect();
-        self.read_char(); // Advance past closing quote
-        string_val
+        let s = self.source[start..self.position].iter().collect();
+        self.read_char();
+        s
     }
 }
