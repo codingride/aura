@@ -22,6 +22,7 @@
 5. **Code Generator (`codegen.rs`)** -> Emits LLVM IR assembly with loaded pointers and branching blocks. [Completed Baseline]
 6. **Machine Assembler (Clang)** -> Packages intermediate streams into native binary executables. [Completed Baseline]
 7. **Source Code Ingestion:** Accepts structural `.au` scripts via standard file paths OR streams live user input character blocks line-by-line through an interactive REPL shell environment. [Active]
+
 ## 4. Historical Milestones
 - [✓] **Era 1 Prototyped:** Tree-walk interpreter validated in Python (v0.1.0).
 - [✓] **Era 2 Frontend Upgraded:** Scaled tokenizer, Pratt Parser operator precedence, and functional structures to Rust.
@@ -30,9 +31,17 @@
 - [✓] **Static Memory Sentinel Verified:** Successfully built a compile-time scope block tracker capable of blocking out-of-scope leakages.
 - [✓] **Scope Lifecycle Sentinel Verified:** Blocked out-of-scope leakages at compile time.
 - [✓] **Immutability Sentinel Verified:** Successfully verified symbol-table protection parameters intercepting unauthorized constant variable overwrites.
+- [✓] **All-In-One Driver Automated:** Compiled standalone files natively down to execution binaries via a single file invocation command.
+- [✓] **Interactive REPL Engine Realized:** Implemented a live terminal environment allowing prompt line code evaluation checking.
+- [✓] **Static Memory Sentinel Verified:** Successfully built a compile-time scope block tracker capable of blocking out-of-scope leakages.
+- [✓] **Immutability Sentinel Verified:** Ensured symbol-table protection parameters intercept unauthorized constant mutations.
+
 
 ## 5. Active Era 3 Implementation Goals
-- Integrate standalone assignment parsing syntax inside `src/ast.rs` and `src/parser.rs`.
+- Add a resource binding state flag to `VariableMeta` inside `src/semantic.rs` to track if an allocation pointer has been `Moved`.
+- Create a `move_resource` method inside `SemanticAnalyzer` to invalidate original identifiers when they transfer ownership properties.
+- Update our test harness to prove that the compiler successfully blocks developers from using dead, moved resource registers.
+
 
 # Aura Language Specification & Compiler Blueprint v0.3.5
 
