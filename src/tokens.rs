@@ -3,10 +3,36 @@ use std::sync::LazyLock;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TokenType {
-    Eof, Illegal, Identifier, IntLit, FloatLit, StringLit,
-    Assign, Plus, Minus, Asterisk, Slash, Arrow, Lt, Gt, Eq,
-    Lparen, Rparen, Lbrace, Rbrace, Comma, Colon,
-    Let, Const, Fn, Return, If, Else, Borrow, True, False,
+    Eof,
+    Illegal,
+    Identifier,
+    IntLit,
+    FloatLit,
+    StringLit,
+    Assign,
+    Plus,
+    Minus,
+    Asterisk,
+    Slash,
+    Arrow,
+    Lt,
+    Gt,
+    Eq,
+    Lparen,
+    Rparen,
+    Lbrace,
+    Rbrace,
+    Comma,
+    Colon,
+    Let,
+    Const,
+    Fn,
+    Return,
+    If,
+    Else,
+    Borrow,
+    True,
+    False,
 }
 
 pub static KEYWORDS: LazyLock<HashMap<&'static str, TokenType>> = LazyLock::new(|| {
@@ -33,6 +59,11 @@ pub struct Token {
 
 impl Token {
     pub fn new(token_type: TokenType, literal: String, line: usize, column: usize) -> Self {
-        Token { token_type, literal, line, column }
+        Token {
+            token_type,
+            literal,
+            line,
+            column,
+        }
     }
 }

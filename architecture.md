@@ -39,8 +39,9 @@ Aura is a statically compiled systems language engineered to eliminate the histo
 ```text
 aura-lang/
 ├── Cargo.toml               # Cargo package manager configuration
-├── .gitignore               # Safely bypasses target binaries and intermediate .ll caches
+├── .gitignore               # Safely bypasses local binaries and intermediate caches
 ├── architecture.md          # This file (Single Source of Truth)
+├── install.sh               # Cross-platform POSIX automated shell installer
 └── src/
     ├── main.rs              # File CLI driver, Interactive REPL shell, and test harness
     ├── tokens.rs            # Token dictionary and keyword mappings
@@ -48,7 +49,8 @@ aura-lang/
     ├── ast.rs               # Boxed heap pointer abstract syntax node configurations
     ├── parser.rs            # Advanced top-down Pratt operator parsing engine
     ├── codegen.rs           # Multi-target, value-loading LLVM IR emitter module
-    └── semantic.rs          # Stack scope boundary and linear ownership sentinels
+    ├── semantic.rs          # Stack scope boundary and linear ownership sentinels
+    └── apm.rs               # New: Built-in Package Manager dependency toolchain engine
 ```
 
 ---
@@ -76,6 +78,11 @@ aura-lang/
 - [✓] **Interactive REPL Engine Realized:** Implemented a live terminal environment prompt shell (`aura >>`) for instant expression evaluations.
 - [✓] **Era 3 Complete (v0.3.0):** Programmed static semantic analyzer sentinels to block out-of-scope leakages, protect constants from mutate overrides, and track linear variable allocations in a **Use-After-Move** tracking map.
 - [✓] **Era 4 Universal Targets Kickoff (v0.4.0):** Implemented target routing flags (`--target=wasm`) to dynamically switch target triples and compile syntax trees directly into browser-ready WebAssembly bytecode (`aura_module.wasm`).
+- [✓] **Universal Web Targeting Functional:** Verified successful compilation of sandboxed WebAssembly bytecode modules (`aura_module.wasm`) executing cleanly inside local browser runtimes.
+- [✓] **Global Toolchain Distribution Enabled:** Engineered an automated system installation shell script to link the Aura compiler executable directly into universal environment paths.
+- [✓] **Ecosystem Package Toolchain Setup Kickoff (v0.5.0):** Programmed the core architectural structure for the built-in Aura Package Manager (`apm`).
+
+
 
 ---
 
