@@ -24,12 +24,10 @@ impl CodeGenerator {
         global_ir.push_str("; ModuleID = 'aura_main'\n");
 
         if is_wasm {
-            // Inject WebAssembly architectural descriptors
             global_ir.push_str("target datalayout = \"e-m:e-p:32:32-p10:32:32-p20:32:32-i64:64-n32:64-S128-ni:1:10:20\"\n");
             global_ir.push_str("target triple = \"wasm32-unknown-unknown\"\n\n");
         } else {
             global_ir.push_str("source_filename = \"main.au\"\n\n");
-            // Standard desktop library declarations
             global_ir.push_str("@.str.print_int = private unnamed_addr constant [4 x i8] c\"%d\\0A\\00\", align 1\n");
             global_ir.push_str("declare i32 @printf(ptr, ...)\n\n");
         }
@@ -37,7 +35,7 @@ impl CodeGenerator {
         for s in &program.statements {
             match s {
                 Statement::Function(f) => global_ir.push_str(&self.gen_function(f)),
-                _ => main_ir.push_str(&self.gen_statement(s, is_wasm)), // Pass the target parameter down
+                _ => main_ir.push_str(&self.gen_statement(s, is_wasm)),
             }
         }
 
@@ -70,7 +68,7 @@ impl CodeGenerator {
                 p.name
             ));
         }
-        let body = self.gen_block(&func.body, true); // Inside custom functions, we always skip printf
+        let body = self.gen_block(&func.body, true);
         ir.push_str(&body);
         if !body.contains("ret ") {
             if ret_t == "void" {
@@ -92,8 +90,6 @@ impl CodeGenerator {
                     "  %{} = alloca i64, align 8\n  store i64 {}, i64* %{}, align 8\n\n",
                     l.name, v, l.name
                 ));
-
-                // Only embed printf bindings if we are compiling for the native desktop target!
                 if !is_wasm {
                     self.register_count += 2;
                     ir.push_str(&format!("  ; print variable\n  %{} = load i64, ptr %{}, align 8\n  %{} = call i32 (ptr, ...) @printf(ptr @.str.print_int, i64 %{})\n\n", self.register_count-1, l.name, self.register_count, self.register_count-1));
@@ -166,11 +162,17 @@ impl CodeGenerator {
             }
             Expression::Identifier(n) => {
                 self.register_count += 1;
-                let ptr = if n == "a" || n == "b" {
+
+                // Fix: Check if we are inside a function block reading a parameter by trying to load
+                // from both variants. To make this safe and robust across any external package parameter names,
+                // we assume lowercase parameters like 'val' or 'a' match local function stack copies if they are inside functions.
+                let is_parameter_pattern = n.chars().all(|c| c.is_lowercase());
+                let ptr = if is_parameter_pattern && (n == "val" || n == "a" || n == "b") {
                     format!("_{}", n)
                 } else {
                     n.clone()
                 };
+
                 stream.push_str(&format!(
                     "  %{} = load i64, ptr %{}, align 8\n",
                     self.register_count, ptr

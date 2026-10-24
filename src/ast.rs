@@ -12,6 +12,7 @@ pub enum Statement {
     Const(ConstStatement),
     Assignment(AssignmentStatement),
     Return(ReturnStatement),
+    Import(ImportStatement),
     Block(BlockStatement),
     Function(FunctionStatement),
     If(IfStatement),
@@ -25,6 +26,7 @@ impl Node for Statement {
             Statement::Const(s) => s.to_string(),
             Statement::Assignment(s) => s.to_string(),
             Statement::Return(s) => s.to_string(),
+            Statement::Import(s) => s.to_string(),
             Statement::Block(s) => s.to_string(),
             Statement::Function(s) => s.to_string(),
             Statement::If(s) => s.to_string(),
@@ -169,6 +171,18 @@ pub struct ReturnStatement {
 impl Node for ReturnStatement {
     fn to_string(&self) -> String {
         format!("return {}", self.return_value.to_string())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ImportStatement {
+    pub token: Token,    // The 'import' token
+    pub library: String, // Name of the targeted module file (e.g. "standard_math")
+}
+
+impl Node for ImportStatement {
+    fn to_string(&self) -> String {
+        format!("import {}", self.library)
     }
 }
 

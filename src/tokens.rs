@@ -33,6 +33,7 @@ pub enum TokenType {
     Borrow,
     True,
     False,
+    Import,
 }
 
 pub static KEYWORDS: LazyLock<HashMap<&'static str, TokenType>> = LazyLock::new(|| {
@@ -46,6 +47,7 @@ pub static KEYWORDS: LazyLock<HashMap<&'static str, TokenType>> = LazyLock::new(
     m.insert("borrow", TokenType::Borrow);
     m.insert("true", TokenType::True);
     m.insert("false", TokenType::False);
+    m.insert("import", TokenType::Import);
     m
 });
 
