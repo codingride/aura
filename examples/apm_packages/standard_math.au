@@ -1,0 +1,6 @@
+// Aura Ecosystem Dependency Package: standard_math
+// Fetched via apm
+
+fn add_bonus(val: Int) -> Int {
+    return val + 10
+}

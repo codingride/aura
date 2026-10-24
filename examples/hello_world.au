@@ -9,3 +9,7 @@ fn add(a: Int, b: Int) -> Int {
 }
 
 let result = add(20, 22)
+
+import standard_math
+
+let final_score = add_bonus(32)

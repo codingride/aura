@@ -1,0 +1,9 @@
+[project]
+name = "my_aura_app"
+version = "0.1.0"
+author = "developer"
+
+[dependencies]
+# Map out library assets dependencies text rules here, e.g.:
+# standard/math = "1.0.0"
+standard_math = "latest"

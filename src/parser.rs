@@ -87,6 +87,7 @@ impl Parser {
             TokenType::Let => self.parse_let_statement().map(Statement::Let),
             TokenType::Const => self.parse_const_statement().map(Statement::Const),
             TokenType::Return => self.parse_return_statement().map(Statement::Return),
+            TokenType::Import => self.parse_import_statement().map(Statement::Import),
             TokenType::Fn => self.parse_function_statement().map(Statement::Function),
             TokenType::If => self.parse_if_statement().map(Statement::If),
             TokenType::Identifier => {
@@ -170,6 +171,14 @@ impl Parser {
             token: tok,
             return_value: self.parse_expression(LOWEST)?,
         })
+    }
+    fn parse_import_statement(&mut self) -> Option<crate::ast::ImportStatement> {
+        let token = self.cur_token.clone();
+        if !self.expect_peek(TokenType::Identifier) {
+            return None;
+        }
+        let library = self.cur_token.literal.clone();
+        Some(crate::ast::ImportStatement { token, library })
     }
     fn parse_function_statement(&mut self) -> Option<FunctionStatement> {
         let tok = self.cur_token.clone();

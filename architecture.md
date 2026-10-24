@@ -33,6 +33,9 @@ Aura is a statically compiled systems language engineered to eliminate the histo
 - Routines: `fn <name>(<param>: <type>, ...) [ -> <return_type> ] <block>`
 - Returns: `return <expression>` (Passes computed register values back up the stack)
 
+### D. Module Imports
+- `import <library_name>` (Loads cached apm library source trees into active scope)
+
 ---
 
 ## 3. Structural Repository Layout
@@ -81,6 +84,7 @@ aura-lang/
 - [✓] **Universal Web Targeting Functional:** Verified successful compilation of sandboxed WebAssembly bytecode modules (`aura_module.wasm`) executing cleanly inside local browser runtimes.
 - [✓] **Global Toolchain Distribution Enabled:** Engineered an automated system installation shell script to link the Aura compiler executable directly into universal environment paths.
 - [✓] **Ecosystem Package Toolchain Setup Kickoff (v0.5.0):** Programmed the core architectural structure for the built-in Aura Package Manager (`apm`).
+- [✓] **Ecosystem Linkage Engine Active:** Engineered an automated file-stitching compiler loop to natively resolve `import` keywords against local vendor caches.
 
 
 
