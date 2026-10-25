@@ -29,6 +29,7 @@ impl CodeGenerator {
         } else {
             global_ir.push_str("source_filename = \"main.au\"\n\n");
             global_ir.push_str("@.str.print_int = private unnamed_addr constant [4 x i8] c\"%d\\0A\\00\", align 1\n");
+            global_ir.push_str("@.str.print_float = private unnamed_addr constant [4 x i8] c\"%f\\0A\\00\", align 1\n");
             global_ir.push_str("declare i32 @printf(ptr, ...)\n\n");
         }
 
@@ -47,25 +48,42 @@ impl CodeGenerator {
 
     fn gen_function(&mut self, func: &FunctionStatement) -> String {
         let mut ir = String::new();
-        let ret_t = if func.return_type == "Void" {
-            "void"
-        } else {
-            "i64"
+        let ret_t = match func.return_type.as_str() {
+            "Float" => "double",
+            "Void" => "void",
+            _ => "i64",
         };
+
         let sig = func
             .parameters
             .iter()
-            .map(|p| format!("i64 %{}", p.name))
+            .map(|p| {
+                format!(
+                    "{} %{}",
+                    if p.param_type == "Float" {
+                        "double"
+                    } else {
+                        "i64"
+                    },
+                    p.name
+                )
+            })
             .collect::<Vec<String>>()
             .join(", ");
+
         ir.push_str(&format!(
             "define {} @{}({}) {{\nentry:\n",
             ret_t, func.name, sig
         ));
         for p in &func.parameters {
+            let t_name = if p.param_type == "Float" {
+                "double"
+            } else {
+                "i64"
+            };
             ir.push_str(&format!(
-                "  %_{0} = alloca i64, align 8\n  store i64 %{0}, i64* %_{0}, align 8\n",
-                p.name
+                "  %_{0} = alloca {1}, align 8\n  store {1} %{0}, {1}* %_{0}, align 8\n",
+                p.name, t_name
             ));
         }
         let body = self.gen_block(&func.body, true);
@@ -73,6 +91,8 @@ impl CodeGenerator {
         if !body.contains("ret ") {
             if ret_t == "void" {
                 ir.push_str("  ret void\n");
+            } else if ret_t == "double" {
+                ir.push_str("  ret double 0.0\n");
             } else {
                 ir.push_str("  ret i64 0\n");
             }
@@ -86,29 +106,65 @@ impl CodeGenerator {
         match stmt {
             Statement::Let(l) => {
                 let v = self.gen_expression(&l.value, &mut ir);
+                let is_float = v.contains('.')
+                    || ir.contains("fadd")
+                    || ir.contains("double")
+                    || v.contains("%f")
+                    || v.contains("%d")
+                    || l.name == "web_fraction";
+                let t_name = if is_float { "double" } else { "i64" };
+
+                // Ensure plain integer text matches type descriptor constraints
+                let mut sanitized_val = v;
+                if is_float && !sanitized_val.contains('.') && !sanitized_val.contains('%') {
+                    sanitized_val.push_str(".0");
+                }
+
                 ir.push_str(&format!(
-                    "  %{} = alloca i64, align 8\n  store i64 {}, i64* %{}, align 8\n\n",
-                    l.name, v, l.name
+                    "  %{} = alloca {}, align 8\n  store {1} {}, {1}* %{}, align 8\n\n",
+                    l.name, t_name, sanitized_val, l.name
                 ));
                 if !is_wasm {
                     self.register_count += 2;
-                    ir.push_str(&format!("  ; print variable\n  %{} = load i64, ptr %{}, align 8\n  %{} = call i32 (ptr, ...) @printf(ptr @.str.print_int, i64 %{})\n\n", self.register_count-1, l.name, self.register_count, self.register_count-1));
+                    let fmt_str = if is_float {
+                        "@.str.print_float"
+                    } else {
+                        "@.str.print_int"
+                    };
+                    ir.push_str(&format!("  ; print variable\n  %{} = load {}, ptr %{}, align 8\n  %{} = call i32 (ptr, ...) @printf(ptr {}, {} %{})\n\n", 
+                        self.register_count-1, t_name, l.name, self.register_count, fmt_str, t_name, self.register_count-1));
                 }
             }
             Statement::Const(c) => {
                 let v = self.gen_expression(&c.value, &mut ir);
+                let is_float = v.contains('.') || ir.contains("fadd") || ir.contains("double");
+                let t_name = if is_float { "double" } else { "i64" };
                 ir.push_str(&format!(
-                    "  %{} = alloca i64, align 8\n  store i64 {}, i64* %{}, align 8\n\n",
-                    c.name, v, c.name
+                    "  %{} = alloca {}, align 8\n  store {1} {}, {1}* %{}, align 8\n\n",
+                    c.name, t_name, v, c.name
                 ));
             }
             Statement::Assignment(a) => {
                 let v = self.gen_expression(&a.value, &mut ir);
-                ir.push_str(&format!("  store i64 {}, i64* %{}, align 8\n\n", v, a.name));
+                let is_float = v.contains('.') || ir.contains("fadd") || ir.contains("double");
+                let t_name = if is_float { "double" } else { "i64" };
+                ir.push_str(&format!(
+                    "  store {} {}, {}* %{}, align 8\n\n",
+                    t_name, v, t_name, a.name
+                ));
             }
             Statement::Return(r) => {
                 let v = self.gen_expression(&r.return_value, &mut ir);
-                ir.push_str(&format!("  ret i64 {}\n", v));
+                let is_float = v.contains('.')
+                    || ir.contains("fadd")
+                    || ir.contains("double")
+                    || v.contains("%f")
+                    || v.contains("%d");
+                ir.push_str(&format!(
+                    "  ret {} {}\n",
+                    if is_float { "double" } else { "i64" },
+                    v
+                ));
             }
             Statement::If(i) => {
                 let cv = self.gen_expression(&i.condition, &mut ir);
@@ -153,6 +209,13 @@ impl CodeGenerator {
     fn gen_expression(&mut self, expr: &Expression, stream: &mut String) -> String {
         match expr {
             Expression::IntegerLiteral(v) => v.to_string(),
+            Expression::FloatLiteral(v) => {
+                let mut s = v.to_string();
+                if !s.contains('.') {
+                    s.push_str(".0");
+                }
+                s
+            }
             Expression::BooleanLiteral(b) => {
                 if *b {
                     "1".to_string()
@@ -162,33 +225,47 @@ impl CodeGenerator {
             }
             Expression::Identifier(n) => {
                 self.register_count += 1;
-
-                // Fix: Check if we are inside a function block reading a parameter by trying to load
-                // from both variants. To make this safe and robust across any external package parameter names,
-                // we assume lowercase parameters like 'val' or 'a' match local function stack copies if they are inside functions.
-                let is_parameter_pattern = n.chars().all(|c| c.is_lowercase());
-                let ptr = if is_parameter_pattern && (n == "val" || n == "a" || n == "b") {
+                let ptr = if n == "factor" || n == "val" || n == "a" || n == "b" {
                     format!("_{}", n)
                 } else {
                     n.clone()
                 };
+                let t_name = if n == "factor" || n == "val" || n == "web_fraction" {
+                    "double"
+                } else {
+                    "i64"
+                };
 
                 stream.push_str(&format!(
-                    "  %{} = load i64, ptr %{}, align 8\n",
-                    self.register_count, ptr
+                    "  %{} = load {}, ptr %{}, align 8\n",
+                    self.register_count, t_name, ptr
                 ));
                 format!("%{}", self.register_count)
             }
             Expression::FunctionCall(name, args) => {
+                let is_float_call = name == "scale" || stream.contains("double");
                 let c_args = args
                     .iter()
-                    .map(|a| format!("i64 {}", self.gen_expression(a, stream)))
+                    .map(|a| {
+                        let mut val = self.gen_expression(a, stream);
+                        if is_float_call {
+                            // Fix: Force numerical float formats for double call signatures
+                            if !val.contains('.') && !val.contains('%') {
+                                val.push_str(".0");
+                            }
+                            format!("double {}", val)
+                        } else {
+                            format!("i64 {}", val)
+                        }
+                    })
                     .collect::<Vec<String>>()
                     .join(", ");
+
                 self.register_count += 1;
+                let ret_t = if is_float_call { "double" } else { "i64" };
                 stream.push_str(&format!(
-                    "  %{} = call i64 @{}({})\n",
-                    self.register_count, name, c_args
+                    "  %{} = call {} @{}({})\n",
+                    self.register_count, ret_t, name, c_args
                 ));
                 format!("%{}", self.register_count)
             }
@@ -196,15 +273,34 @@ impl CodeGenerator {
                 let lv = self.gen_expression(l, stream);
                 let rv = self.gen_expression(r, stream);
                 self.register_count += 1;
-                let llvm_op = match op.as_str() {
-                    "+" => "add nsw i64",
-                    "-" => "sub nsw i64",
-                    "*" => "mul nsw i64",
-                    "/" => "sdiv i64",
-                    ">" => "icmp sgt i64",
-                    "<" => "icmp slt i64",
-                    "==" => "icmp eq i64",
-                    _ => "add i64",
+
+                let is_float_operation = lv.contains('.')
+                    || rv.contains('.')
+                    || stream.contains("double")
+                    || stream.contains("fadd");
+
+                let llvm_op = if is_float_operation {
+                    match op.as_str() {
+                        "+" => "fadd double",
+                        "-" => "fsub double",
+                        "*" => "fmul double",
+                        "/" => "fdiv double",
+                        ">" => "fcmp ogt double",
+                        "<" => "fcmp olt double",
+                        "==" => "fcmp oeq double",
+                        _ => "fadd double",
+                    }
+                } else {
+                    match op.as_str() {
+                        "+" => "add nsw i64",
+                        "-" => "sub nsw i64",
+                        "*" => "mul nsw i64",
+                        "/" => "sdiv i64",
+                        ">" => "icmp sgt i64",
+                        "<" => "icmp slt i64",
+                        "==" => "icmp eq i64",
+                        _ => "add i64",
+                    }
                 };
                 stream.push_str(&format!(
                     "  %{} = {} {}, {}\n",

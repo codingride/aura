@@ -36,6 +36,9 @@ Aura is a statically compiled systems language engineered to eliminate the histo
 ### D. Module Imports
 - `import <library_name>` (Loads cached apm library source trees into active scope)
 
+### E. Primitive Floating-Point Types
+- Floating-Point Fractions: Maps `Float` parameters natively to LLVM `double` / `f64` registers, bypassing integer constraints for universal browser math capabilities.
+
 ---
 
 ## 3. Structural Repository Layout
@@ -85,8 +88,7 @@ aura-lang/
 - [✓] **Global Toolchain Distribution Enabled:** Engineered an automated system installation shell script to link the Aura compiler executable directly into universal environment paths.
 - [✓] **Ecosystem Package Toolchain Setup Kickoff (v0.5.0):** Programmed the core architectural structure for the built-in Aura Package Manager (`apm`).
 - [✓] **Ecosystem Linkage Engine Active:** Engineered an automated file-stitching compiler loop to natively resolve `import` keywords against local vendor caches.
-
-
+- [✓] **Web Assembly Fractional Point Math Realized (v0.6.0):** Upgraded the target-aware intermediate emitter to output low-level floating-point vector parameters (`fadd`, `fcmp`).
 
 ---
 

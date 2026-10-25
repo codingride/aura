@@ -13,3 +13,9 @@ let result = add(20, 22)
 import standard_math
 
 let final_score = add_bonus(32)
+
+fn scale(factor: Float) -> Float {
+    return factor * 1.5
+}
+
+let web_fraction = scale(28.0)
