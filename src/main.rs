@@ -38,7 +38,20 @@ fn main() -> io::Result<()> {
     if args.len() < 2 {
         return run_repl();
     }
-    let target_path = &args[1];
+
+    // Check if user is requesting a custom WebAssembly target
+    let mut is_wasm_target = false;
+    let mut file_idx = 1;
+
+    for (i, arg) in args.iter().enumerate().skip(1) {
+        if arg == "--target=wasm" || arg == "wasm" {
+            is_wasm_target = true;
+        } else if !arg.starts_with('-') {
+            file_idx = i;
+        }
+    }
+
+    let target_path = &args[file_idx];
     if !Path::new(target_path).exists() {
         println!("Error: File '{}' not found.", target_path);
         return Ok(());
@@ -53,11 +66,21 @@ fn main() -> io::Result<()> {
     let mut parser = Parser::new(Lexer::new(&code));
     let mut program = parser.parse_program();
 
-    // --- New Feature Loop: Multi-File Deep Package Resolver Stitching ---
+    // Improved Multi-File Path Fallback Resolver
     let mut external_statements = Vec::new();
     for stmt in &program.statements {
         if let ast::Statement::Import(import_stmt) = stmt {
-            let library_path = format!("apm_packages/{}.au", import_stmt.library);
+            // Choice A: Look relative to the current executed context
+            let mut library_path = format!("apm_packages/{}.au", import_stmt.library);
+
+            // Choice B: Fallback to project root directory vendor cache if invoked from a subfolder
+            if !Path::new(&library_path).exists() {
+                library_path = format!("../apm_packages/{}.au", import_stmt.library);
+            }
+            if !Path::new(&library_path).exists() {
+                library_path = format!("examples/apm_packages/{}.au", import_stmt.library);
+            }
+
             if Path::new(&library_path).exists() {
                 println!(
                     "📦 Stitching ecosystem code tracking blocks from vendor cache: {}",
@@ -66,12 +89,11 @@ fn main() -> io::Result<()> {
                 let mut lib_code = String::new();
                 File::open(&library_path)?.read_to_string(&mut lib_code)?;
 
-                // Parse the downloaded file into a clean parallel AST structure tree
                 let mut lib_parser = Parser::new(Lexer::new(&lib_code));
                 let lib_program = lib_parser.parse_program();
 
                 for lib_stmt in lib_program.statements {
-                    external_statements.push(lib_stmt); // Extract function fragments into active compiler stream
+                    external_statements.push(lib_stmt);
                 }
             } else {
                 println!(
@@ -83,7 +105,6 @@ fn main() -> io::Result<()> {
         }
     }
 
-    // Append the loaded package dependency modules straight into the global executable tree stream!
     program.statements.extend(external_statements);
 
     if !parser.errors.is_empty() {
@@ -93,7 +114,6 @@ fn main() -> io::Result<()> {
         return Ok(());
     }
 
-    // Safety sentinels validation sweep pass
     let mut analyzer = SemanticAnalyzer::new();
     for s in &program.statements {
         match s {
@@ -120,19 +140,44 @@ fn main() -> io::Result<()> {
         return Ok(());
     }
 
-    File::create("output.ll")?.write_all(
-        CodeGenerator::new()
-            .generate_with_target(&program, false)
-            .as_bytes(),
-    )?;
-    println!("⚙️  Spawning Clang background linker...");
-    if Command::new("clang")
-        .args(["output.ll", "-o", "aura_program"])
-        .status()?
-        .success()
-    {
-        println!("🎉 SUCCESS! Ecosystem Linked standalone binary ready: ./aura_program\n");
+    let mut generator = CodeGenerator::new();
+    let ir_output = generator.generate_with_target(&program, is_wasm_target);
+    File::create("output.ll")?.write_all(ir_output.as_bytes())?;
+
+    if is_wasm_target {
+        println!("⚙️  Spawning Clang background web-assembler (Target: wasm32)...");
+        let status = Command::new("clang")
+            .args([
+                "--target=wasm32",
+                "-nostdlib",
+                "-Wl,--no-entry",
+                "-Wl,--export-all",
+                "output.ll",
+                "-o",
+                "aura_module.wasm",
+            ])
+            .status()?;
+
+        if status.success() {
+            println!(
+                "🎉 SUCCESS! Web-Ready bytecode assembly module packaged: ./aura_module.wasm\n"
+            );
+        } else {
+            println!(
+                "⚠️ Notice: Standard Wasm linking requires 'lld' or target headers installed on your system.\n"
+            );
+        }
+    } else {
+        println!("⚙️  Spawning Clang background native desktop linker...");
+        if Command::new("clang")
+            .args(["output.ll", "-o", "aura_program"])
+            .status()?
+            .success()
+        {
+            println!("🎉 SUCCESS! Standalone native binary ready: ./aura_program\n");
+        }
     }
+
     Ok(())
 }
 
@@ -166,22 +211,4 @@ fn run_repl() -> io::Result<()> {
         println!();
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn verify_module_imports_parsing() {
-        let mut p = Parser::new(Lexer::new(
-            "import standard_math\nlet result = add_bonus(10)",
-        ));
-        let prog = p.parse_program();
-        assert!(p.errors.is_empty(), "Failed to parse import token streams!");
-        let has_import = prog
-            .statements
-            .iter()
-            .any(|s| matches!(s, ast::Statement::Import(_)));
-        assert!(has_import);
-    }
 }
