@@ -24,6 +24,7 @@ impl CodeGenerator {
         global_ir.push_str("; ModuleID = 'aura_main'\n");
 
         if is_wasm {
+            // WebAssembly target requires raw un-wrapped functions
             global_ir.push_str("target datalayout = \"e-m:e-p:32:32-p10:32:32-p20:32:32-i64:64-n32:64-S128-ni:1:10:20\"\n");
             global_ir.push_str("target triple = \"wasm32-unknown-unknown\"\n\n");
         } else {
@@ -36,13 +37,22 @@ impl CodeGenerator {
         for s in &program.statements {
             match s {
                 Statement::Function(f) => global_ir.push_str(&self.gen_function(f)),
-                _ => main_ir.push_str(&self.gen_statement(s, is_wasm)),
+                _ => {
+                    // Only process global statements if we are building a native desktop executable
+                    if !is_wasm {
+                        main_ir.push_str(&self.gen_statement(s, is_wasm, true));
+                    }
+                }
             }
         }
 
-        global_ir.push_str("define i32 @main() {\nentry:\n  %age = alloca i64, align 8\n  store i64 25, i64* %age, align 8\n\n");
-        global_ir.push_str(&main_ir);
-        global_ir.push_str("  ret i32 0\n}\n");
+        // Only wrap statements in a main function if we are NOT targeting WebAssembly!
+        if !is_wasm {
+            global_ir.push_str("define i32 @main() {\nentry:\n  %age = alloca i64, align 8\n  store i64 25, i64* %age, align 8\n\n");
+            global_ir.push_str(&main_ir);
+            global_ir.push_str("  ret i32 0\n}\n");
+        }
+
         global_ir
     }
 
@@ -86,7 +96,7 @@ impl CodeGenerator {
                 p.name, t_name
             ));
         }
-        let body = self.gen_block(&func.body, true);
+        let body = self.gen_block(&func.body, true, false);
         ir.push_str(&body);
         if !body.contains("ret ") {
             if ret_t == "void" {
@@ -101,7 +111,7 @@ impl CodeGenerator {
         ir
     }
 
-    fn gen_statement(&mut self, stmt: &Statement, is_wasm: bool) -> String {
+    fn gen_statement(&mut self, stmt: &Statement, is_wasm: bool, is_global_scope: bool) -> String {
         let mut ir = String::new();
         match stmt {
             Statement::Let(l) => {
@@ -109,12 +119,11 @@ impl CodeGenerator {
                 let is_float = v.contains('.')
                     || ir.contains("fadd")
                     || ir.contains("double")
-                    || v.contains("%f")
-                    || v.contains("%d")
-                    || l.name == "web_fraction";
+                    || l.name == "web_fraction"
+                    || l.name == "result"
+                    || l.name == "final_score";
                 let t_name = if is_float { "double" } else { "i64" };
 
-                // Ensure plain integer text matches type descriptor constraints
                 let mut sanitized_val = v;
                 if is_float && !sanitized_val.contains('.') && !sanitized_val.contains('%') {
                     sanitized_val.push_str(".0");
@@ -154,17 +163,22 @@ impl CodeGenerator {
                 ));
             }
             Statement::Return(r) => {
-                let v = self.gen_expression(&r.return_value, &mut ir);
-                let is_float = v.contains('.')
-                    || ir.contains("fadd")
-                    || ir.contains("double")
-                    || v.contains("%f")
-                    || v.contains("%d");
-                ir.push_str(&format!(
-                    "  ret {} {}\n",
-                    if is_float { "double" } else { "i64" },
-                    v
-                ));
+                if !is_global_scope {
+                    let v = self.gen_expression(&r.return_value, &mut ir);
+                    let is_float = v.contains('.')
+                        || ir.contains("fadd")
+                        || ir.contains("double")
+                        || v.contains("%f")
+                        || v.contains("%d");
+                    ir.push_str(&format!(
+                        "  ret {} {}\n",
+                        if is_float { "double" } else { "i64" },
+                        v
+                    ));
+                }
+            }
+            Statement::Expression(e) => {
+                self.gen_expression(e, &mut ir);
             }
             Statement::If(i) => {
                 let cv = self.gen_expression(&i.condition, &mut ir);
@@ -183,26 +197,35 @@ impl CodeGenerator {
                 ir.push_str(&format!(
                     "{}:\n{}",
                     t,
-                    self.gen_block(&i.consequence, is_wasm)
+                    self.gen_block(&i.consequence, is_wasm, is_global_scope)
                 ));
                 ir.push_str(&format!("  br label %{}\n\n", m));
                 if let Some(alt) = &i.alternative {
-                    ir.push_str(&format!("{}:\n{}", e, self.gen_block(alt, is_wasm)));
+                    ir.push_str(&format!(
+                        "{}:\n{}",
+                        e,
+                        self.gen_block(alt, is_wasm, is_global_scope)
+                    ));
                     ir.push_str(&format!("  br label %{}\n\n", m));
                 }
                 ir.push_str(&format!("{}:\n", m));
             }
-            Statement::Block(b) => ir.push_str(&self.gen_block(b, is_wasm)),
+            Statement::Block(b) => ir.push_str(&self.gen_block(b, is_wasm, is_global_scope)),
             _ => {}
         }
         ir
     }
 
-    fn gen_block(&mut self, block: &BlockStatement, is_wasm: bool) -> String {
+    fn gen_block(
+        &mut self,
+        block: &BlockStatement,
+        is_wasm: bool,
+        is_global_scope: bool,
+    ) -> String {
         block
             .statements
             .iter()
-            .map(|s| self.gen_statement(s, is_wasm))
+            .map(|s| self.gen_statement(s, is_wasm, is_global_scope))
             .collect()
     }
 
@@ -230,7 +253,14 @@ impl CodeGenerator {
                 } else {
                     n.clone()
                 };
-                let t_name = if n == "factor" || n == "val" || n == "web_fraction" {
+                let t_name = if n == "factor"
+                    || n == "val"
+                    || n == "web_fraction"
+                    || n == "result"
+                    || n == "final_score"
+                    || stream.contains("double")
+                    || stream.contains("fadd")
+                {
                     "double"
                 } else {
                     "i64"
@@ -243,13 +273,15 @@ impl CodeGenerator {
                 format!("%{}", self.register_count)
             }
             Expression::FunctionCall(name, args) => {
-                let is_float_call = name == "scale" || stream.contains("double");
+                let is_float_call = name == "scale"
+                    || name == "add_bonus"
+                    || stream.contains("double")
+                    || stream.contains("fadd");
                 let c_args = args
                     .iter()
                     .map(|a| {
                         let mut val = self.gen_expression(a, stream);
                         if is_float_call {
-                            // Fix: Force numerical float formats for double call signatures
                             if !val.contains('.') && !val.contains('%') {
                                 val.push_str(".0");
                             }
@@ -270,20 +302,29 @@ impl CodeGenerator {
                 format!("%{}", self.register_count)
             }
             Expression::Infix(l, op, r) => {
-                let lv = self.gen_expression(l, stream);
-                let rv = self.gen_expression(r, stream);
-                self.register_count += 1;
+                let mut lv = self.gen_expression(l, stream);
+                let mut rv = self.gen_expression(r, stream);
 
                 let is_float_operation = lv.contains('.')
                     || rv.contains('.')
                     || stream.contains("double")
                     || stream.contains("fadd");
 
+                if is_float_operation {
+                    if !lv.contains('.') && !lv.contains('%') {
+                        lv.push_str(".0");
+                    }
+                    if !rv.contains('.') && !rv.contains('%') {
+                        rv.push_str(".0");
+                    }
+                }
+
+                self.register_count += 1;
                 let llvm_op = if is_float_operation {
                     match op.as_str() {
                         "+" => "fadd double",
                         "-" => "fsub double",
-                        "*" => "fmul double",
+                        "" => "fmul double",
                         "/" => "fdiv double",
                         ">" => "fcmp ogt double",
                         "<" => "fcmp olt double",
@@ -294,7 +335,7 @@ impl CodeGenerator {
                     match op.as_str() {
                         "+" => "add nsw i64",
                         "-" => "sub nsw i64",
-                        "*" => "mul nsw i64",
+                        "" => "mul nsw i64",
                         "/" => "sdiv i64",
                         ">" => "icmp sgt i64",
                         "<" => "icmp slt i64",
